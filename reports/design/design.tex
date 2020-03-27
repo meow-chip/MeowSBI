@@ -1,0 +1,111 @@
+\documentclass[UTF-8]{ctexbeamer}
+\usetheme{Boadilla}
+
+\usepackage{listing}
+\usepackage{minted}
+
+\title{rCore on MeowV64}
+\subtitle{设计方案}
+
+\author{g04 - 刘晓义}
+\date{2020-3}
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}
+  \frametitle{TL;DR}
+
+  \begin{description}
+    \item[MeowV64] 某个 RISC-V 处理器
+    \item[MeowSBI] (即将) 在这个 RISC-V 处理器上运行的 M 态软件
+  \end{description}
+
+  \vspace{1em}
+
+  在 SoC 中，M 态软件和 ISA 同样重要：抽象中断控制器，外设，特殊扩展，以及模拟部分不支持的指令。
+\end{frame}
+
+\begin{frame}
+  \frametitle{OpenSBI?}
+
+  OpenSBI 造出来的 M 态软件可以分为三部分
+  \begin{itemize}
+    \item 平台无关代码: 只需要充足的 ISA 扩展即可
+    \item 平台相关代码: 需要 SoC 实现者添加的相关代码
+    \item 平台的 Device tree: OpenSBI 可能会用，启动下一级也会用到。
+  \end{itemize}
+\end{frame}
+\begin{frame}
+  \frametitle{可以选择的实现方案}
+
+  \begin{itemize}
+    \item OpenSBI，然后完全按照 UART16550, PLIC, CLINT 实现硬件，用缺省的平台配置，通过 Device tree 配置。
+    \item OpenSBI，然后按照自己实现的中断控制器，实现自己的平台配置，然后可选地加上 Device tree 配置的可能。
+    \item 将 OpenSBI 作为库使用，或者将 OpenSBI 作为二级启动项。
+    \item \textcolor<2>{orange}{实现 OpenSBI 兼容的 M 态软件。}
+    \item 实现 OpenSBI 不兼容的 M 态软件，然后修改 rCore 的 SBI 调用。 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{语言}
+  Rust 确实挺好，但是有什么好处呢？
+
+  \begin{block}{Rustonomicon - Chap. 1}
+    C is incredibly unsafe to use (sometimes for good reason)
+  \end{block}
+
+  \vspace{1em}
+  \pause
+
+  \begin{description}
+    \item[控制未初始化内存] 所有东西其实都是未初始化的
+    \item[控制并发竞争] 在 M 态竞争意味着核间竞争，跨核的状态包括冷启动初始化，Console，中断控制器，IPI 和远程 FENCE
+    \item[明确的安全性边界] 提供了部分的“正确性验证”
+    \pause
+    \item[高级抽象] 可能能用到的只有 Pattern matching 和 Option？而且还要用 NonNull，MaybeUninit 之类的指挥编译器进行（负）优化。
+    \pause
+    \item[\sout{我写的熟练}] 其实不一定是个好处
+  \end{description}
+\end{frame}
+
+\begin{frame}
+  \frametitle{需要复刻哪些部份？}
+  \begin{itemize}
+    \item 接口
+    \begin{itemize}
+      \item Base
+      \item Legacy: Time, IPI, RFNC
+      \only<1>{\item HSM}
+      \only<2->{\item \sout{HSM}}
+    \end{itemize}
+    \item Maybe FDT parser? (alloc free version)
+  \end{itemize}
+
+  \pause
+  \pause
+  \vspace{1em}
+  除此之外呢？
+  \begin{itemize}
+    \item 内部接口的划分设计
+    \item U-boot?
+  \end{itemize}
+\end{frame}
+\begin{frame}
+  \frametitle{一些其他的前置条件}
+  \begin{itemize}
+    \item 中断控制器
+    \item Sv48 页表支持
+    \item AMO
+    \item 优化面积
+  \end{itemize}
+
+  \pause
+
+  \vspace{1em}
+  分工？
+\end{frame}
+\end{document}
