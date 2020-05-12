@@ -1,0 +1,83 @@
+\documentclass[UTF-8]{ctexart}
+
+\usepackage{listing}
+\usepackage{minted}
+
+\title{rCore on MeowV64 - 设计方案}
+
+\author{g04 - 刘晓义}
+\date{2020-3}
+
+\begin{document}
+\maketitle
+
+\section{课程设计目标}
+
+为 MeowV64 实现 M 态软件，并补全其硬件，使得在其上可以运行 rCore （或 rCore 的裁剪版本）。
+
+\section{课程设计背景}
+
+\subsection{MeowV64 和 RISC-V ISA}
+MeowV64 是在上个学期计算机组成原理中，由刘晓义、娄晨曜、申奥共同完成的 RISC-V 64 IMAC 处理器（其中 A 支持不全）。MeowV64 包含 L1 和 L2 两级 Cache，并且支持 SMP。流水线支持多发射乱序执行，但是这个对软件而言是透明的。
+
+RISC-V ISA 对于软件适配系统而言有特别方便的地方，因为区分了 M 态软件和 S 态软件，并且在这两个特权态的界面上有一个接口的参考标准，也就是 SBI 标准。
+
+因此，硬件系统开发者只需要实现适配了自身平台的 M 态软件，就可以支持所有的 S 态应用。
+
+\section{既有社区工作}
+  \subsection{OpenSBI}
+  OpenSBI 是 RISC-V 社区的一个参考 SBI 实现，有很好的可移植性。它内置了一个 FDT Parser，并且支持全部的 SBI 扩展。硬件系统开发者只需要实现很少的一些元语，就可以将 OpenSBI 移植到自己的系统内。
+
+  因此，一个实现路径是直接使用 OpenSBI，实现平台相关代码，即可完成 M 态软件。
+
+  另一个可行的实现路径是自己编写 Bootloader，然后将 OpenSBI 作为第二级引导项或者一个SBI 调用处理库使用。
+\section{实现方案}
+
+  \subsection{实现路径}
+
+  虽然 OpenSBI 比较好用，但是出于造轮子的心态，我们决定重新编写一个 M 态软件。另外的部分动机来自于我们阅读了 OpenSBI 的源代码，发现其中大量代码在实现 Spinlock，Channel 等代码，以及包装 RISC-V 汇编指令。如果使用 Rust 编写，可以大幅简化代码。关于语言选择的讨论，可以具体参考第 \ref{sec:lang} 节。
+
+  具体需要实现的部分包括：
+
+  \begin{itemize}
+    \item SBI 接口
+    \begin{itemize}
+      \item Base
+      \item Time, IPI, RFNC (and their legacy conterparts)
+    \end{itemize}
+    \item FDT parser
+  \end{itemize}
+
+  注意到，我们决定不实现 SBI 中的 HSM 扩展。主要原因是这部分平台相关的元语和其他 SBI 接口完全不相交，而且 MeowV64 不支持关闭其中的部分核心。
+
+  当然还有一种可能是实现和 SBI 不兼容的 M 态软件，然后修改 rCore 代码适配新的接口。但是事实上 SBI 的设计非常简洁，而且基本上所有的 S 态软件都要依赖这部分接口，因此设计新接口的意义不大。
+
+  \subsection{语言选择}
+  \label{sec:lang}
+  我们选择了 Rust 语言，主要考量了其三点特性：
+  
+  \paragraph{安全边界界定} 注意，这里并不指传统用户态或者操作系统内的安全的定义，因为在 M 态，我们拥有系统的完全权限，做什么都是“合法的”。在这里，我们主要需要注意的是 Undefined Behavior 的边界，以及如何指挥编译器进行优化。例如在刚进入 M 态软件的时候，全部 RAM 内存都应该是无意义的内容。在这时，我们可以用 MaybeUninit 告诉编译器在这段时间不要进行特定的优化，例如预先假定 bool 类型的内存里只能有 0 和 1 两种可能。
+
+  控制并发竞争事实上在 M 态里比较少见，可能包括的就是串口 IO 和远程 FENCE。由于中断控制器的操作一般是原子的，因此这不涉及同步问题。
+
+  \paragraph{高级抽象和外部代码} Pattern Matching 以及 Option，Result 等标准类型会很大程度方便接口的编写。同时，社区有成熟的同步元语、自动类型转换以及 RISC-V 汇编的包装，可以直接使用。
+
+  \subsection{硬件及 SoC}
+  MeowV64 及 SoC 本身需要完成部分工作：
+
+  \paragraph{Sv48 页表支持} 目前没有页表支持，这是比较重要的一项。
+
+  \paragraph{中断控制器} 目前虽然支持外部中断，但是没有中断控制器。可以考虑直接用 Xilinx 提供的中断控制器 IP，自己写如果只需要比较简单的功能，推测难度也不太大。
+
+  \paragraph{AMO} 目前支持的 A 扩展指令只有 \texttt{lr} 和 \texttt{sc}。Rust 编译目标需要 ISA 支持 AMO。虽然可以通过 M 态模拟，但是如果通过硬件实现可以复用部分逻辑，并且可以大幅度提高性能。
+
+  \paragraph{面积优化} 目前片上只能勉强放下两个核心，并且频率不能太高。发射阶段和 ROB 的逻辑需要进一步优化，以减小面积占用。
+
+  \subsection{后续工作}
+  可能需要进行的包括U-boot的适配工作，这样会比较方便从外设里加载 rCore 的代码。
+
+  如果可能的话，我们会尝试使用上个学期编写的 Rust 前端编译 rCore 的缩减版（完整支持 Rust 的语言特性有很大困难）。
+
+  \section{已完成工作}
+  刚刚开始实现适配 Qemu 的 M 态软件，初步目标是在 Qemu 上替代 OpenSBI。
+\end{document}

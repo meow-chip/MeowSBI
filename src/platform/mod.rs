@@ -1,11 +1,17 @@
-trait PlatformOps {
-    fn early_init(cold: bool);
-    fn final_init(cold: bool);
+pub mod meowv64;
+pub mod qemu;
 
-    fn set_timer(instant: u64);
-    fn get_timer() -> u64;
-}
+pub trait PlatformOps : Sized {
+    fn on(hardid: usize) -> Self;
+    fn early_init(&self, _cold: bool) {}
+    fn final_init(&self, _cold: bool) {}
 
-struct Platform<P: PlatformOps> {
-    _pd: core::marker::PhantomData<P>,
+    fn set_timer(&self, instant: u64);
+
+    fn put_char(&self, c: u8);
+    fn get_char(&self) -> u8;
+
+    fn local() -> Self {
+        Self::on(riscv::register::mhartid::read())
+    }
 }
