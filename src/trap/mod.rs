@@ -12,7 +12,7 @@ pub fn setup() {
     unsafe {
         // Setup MEDELEG, only handles S_CALL for now
         let memask = 0xFFFF - (1<<9);
-        asm!("csrw medeleg, $0" :: "r"(memask) :: "volatile");
+        llvm_asm!("csrw medeleg, $0" :: "r"(memask) :: "volatile");
 
         // Setup MIDELEG
         riscv::register::mideleg::set_sext();
@@ -22,7 +22,7 @@ pub fn setup() {
 
         // Setup MTVEC
         // let addr = trap_enter as usize;
-        // asm!("csrw mtvec, $0" :: "r"(addr) :: "volatile");
+        // llvm_asm!("csrw mtvec, $0" :: "r"(addr) :: "volatile");
         riscv::register::mtvec::write(trap_enter as usize, riscv::register::mtvec::TrapMode::Direct);
 
         // Set corresponding MIE
@@ -37,7 +37,7 @@ pub fn setup() {
 
 macro_rules! op_reg {
     ($op: literal, $cnt:literal) => {
-        asm!(concat!(
+        llvm_asm!(concat!(
             $op,
             " x",
             stringify!($cnt),
@@ -64,9 +64,7 @@ macro_rules! TF_SIZE {
     () => (32*8);
 }
 
-const TF_SIZE_CONST: usize = TF_SIZE!();
-
-fn _tf_size_check(tf: TrapFrame) -> [u8; TF_SIZE_CONST] {
+fn _tf_size_check(tf: TrapFrame) -> [u8; TF_SIZE!()] {
     unsafe {
         core::mem::transmute(tf)
     }
@@ -76,11 +74,11 @@ fn _tf_size_check(tf: TrapFrame) -> [u8; TF_SIZE_CONST] {
 #[naked]
 #[link_section = ".text.trap"]
 unsafe fn trap_enter() -> ! {
-    asm!("csrrw sp, mscratch, sp"); // Swap machine and friends
-    asm!("bnez sp, 1f");
-    asm!("csrr sp, mscratch");
+    llvm_asm!("csrrw sp, mscratch, sp"); // Swap machine and friends
+    llvm_asm!("bnez sp, 1f");
+    llvm_asm!("csrr sp, mscratch");
 
-    asm!(concat!("1: addi sp, sp, -", stringify!(32*8)));
+    llvm_asm!(concat!("1: addi sp, sp, -", stringify!(32*8)));
     store_reg!(1);
     store_reg!(3);
     store_reg!(4);
@@ -112,11 +110,11 @@ unsafe fn trap_enter() -> ! {
     store_reg!(30);
     store_reg!(31);
 
-    asm!("csrrw t0, mscratch, x0");
-    asm!("sd t0, 8*2(sp)");
+    llvm_asm!("csrrw t0, mscratch, x0");
+    llvm_asm!("sd t0, 8*2(sp)");
 
-    asm!("mv a0, sp");
-    asm!("call wrapped_trap");
+    llvm_asm!("mv a0, sp");
+    llvm_asm!("call wrapped_trap");
 
     trap_ret();
 }
@@ -124,15 +122,15 @@ unsafe fn trap_enter() -> ! {
 #[naked]
 // Assumes that the top of the stack is the TrapFrame
 unsafe fn trap_ret() -> ! {
-    asm!("csrr t0, mstatus");
-    asm!("srli t0, t0, 11");
-    asm!("andi t0, t0, 3"); // Now t0 = MPP
+    llvm_asm!("csrr t0, mstatus");
+    llvm_asm!("srli t0, t0, 11");
+    llvm_asm!("andi t0, t0, 3"); // Now t0 = MPP
 
-    asm!("xori t0, t0, 3");
-    asm!("beqz t0, 1f"); // MPP = M
-    asm!(concat!("addi t0, sp, ", stringify!(32*8)));
-    asm!("csrw mscratch, t0");
-    asm!("1: ");
+    llvm_asm!("xori t0, t0, 3");
+    llvm_asm!("beqz t0, 1f"); // MPP = M
+    llvm_asm!(concat!("addi t0, sp, ", stringify!(32*8)));
+    llvm_asm!("csrw mscratch, t0");
+    llvm_asm!("1: ");
 
     load_reg!(1);
     load_reg!(3);
@@ -166,21 +164,21 @@ unsafe fn trap_ret() -> ! {
     load_reg!(31);
 
     load_reg!(2);
-    asm!("mret");
+    llvm_asm!("mret");
 
     unreachable!()
 }
 
 #[naked]
 pub unsafe fn next_ret() -> ! {
-    asm!("mv s0, sp");
-    asm!(concat!("addi sp, sp, -", stringify!(32*8)));
-    asm!("1: addi s0, s0, -8");
-    asm!("sd x0, 0(s0)");
-    asm!("bne sp, s0, 1b");
+    llvm_asm!("mv s0, sp");
+    llvm_asm!(concat!("addi sp, sp, -", stringify!(32*8)));
+    llvm_asm!("1: addi s0, s0, -8");
+    llvm_asm!("sd x0, 0(s0)");
+    llvm_asm!("bne sp, s0, 1b");
 
-    asm!("csrr t0, mhartid");
-    asm!("sd t0, 8*10(sp)");
+    llvm_asm!("csrr t0, mhartid");
+    llvm_asm!("sd t0, 8*10(sp)");
 
     trap_ret();
 }

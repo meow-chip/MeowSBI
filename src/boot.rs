@@ -12,19 +12,19 @@ pub extern "C" fn entry() -> ! {
 #[naked]
 extern "C" fn setup_stack() {
     unsafe {
-        asm!("csrr t0, mhartid");
-        asm!("addi t0, t0, 1");
-        asm!(concat!("slli t0, t0, ", crate::HART_STORE_SHIFT_STR!()));
-        asm!("mv sp, $0" :: "r"(
+        llvm_asm!("csrr t0, mhartid");
+        llvm_asm!("addi t0, t0, 1");
+        llvm_asm!(concat!("slli t0, t0, ", crate::HART_STORE_SHIFT_STR!()));
+        llvm_asm!("mv sp, $0" :: "r"(
             &crate::mem::STORAGE as *const _ as usize
         ) :: "volatile");
-        asm!("add sp, sp, t0");
+        llvm_asm!("add sp, sp, t0");
     }
 }
 
 macro_rules! clear_reg {
     ($x:ident) => {
-        asm!(concat!("li ", stringify!($x), ", 0"));
+        llvm_asm!(concat!("li ", stringify!($x), ", 0"));
     };
 }
 
@@ -32,7 +32,7 @@ macro_rules! clear_reg {
 fn setup_register() {
     unsafe {
         // FENCE.I
-        asm!("fence.i");
+        llvm_asm!("fence.i");
 
         // Clear everything except ra, so it can return
         clear_reg!(sp);

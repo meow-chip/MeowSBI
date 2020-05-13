@@ -55,7 +55,7 @@ impl<const BASE: usize> UART16550<BASE> {
                 }
             }
 
-            core::ptr::read_volatile((BASE + offsets::THR) as *const u8)
+            core::ptr::read_volatile((BASE + offsets::RBR) as *const u8)
 
         }
     }

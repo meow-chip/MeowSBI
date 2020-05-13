@@ -1,9 +1,13 @@
-#![feature(const_generics, link_args, naked_functions, asm, global_asm, const_transmute)]
+#![allow(incomplete_features)]
+#![feature(const_generics, link_args, naked_functions, llvm_asm, global_asm, const_transmute)]
 
 #![cfg_attr(not(test), no_std)]
 #![no_main]
 
-#![link_args = "-Tsrc/ld/qemu.ld"]
+mod linker {
+    #![allow(unused_attributes)]
+    #![link_args = "-Tsrc/ld/qemu.ld"]
+}
 
 use riscv;
 

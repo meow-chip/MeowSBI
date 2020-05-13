@@ -17,18 +17,14 @@ impl HartData {
 }
 
 pub struct HartStack<const STACK_SIZE: usize> {
-    inner: [MaybeUninit<u8>; STACK_SIZE],
+    _inner: [MaybeUninit<u8>; STACK_SIZE],
 }
 
 impl<const STACK_SIZE: usize> HartStack<STACK_SIZE> {
     const fn new() -> Self {
         Self {
-            inner: [MaybeUninit::uninit(); STACK_SIZE],
+            _inner: [MaybeUninit::uninit(); STACK_SIZE],
         }
-    }
-
-    pub unsafe fn start_ptr(&self) -> *const u8 {
-        self.inner[STACK_SIZE-1].as_ptr()
     }
 }
 
