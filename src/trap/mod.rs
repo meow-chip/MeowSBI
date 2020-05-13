@@ -178,15 +178,15 @@ unsafe fn trap_ret() -> ! {
 }
 
 #[naked]
-pub unsafe fn next_ret() -> ! {
+pub unsafe fn next_ret(hartid: usize, fdt_addr: *const u8) -> ! {
     llvm_asm!("mv s0, sp");
     llvm_asm!(concat!("addi sp, sp, -", stringify!(32 * 8)));
     llvm_asm!("1: addi s0, s0, -8");
     llvm_asm!("sd x0, 0(s0)");
     llvm_asm!("bne sp, s0, 1b");
 
-    llvm_asm!("csrr t0, mhartid");
-    llvm_asm!("sd t0, 8*10(sp)");
+    llvm_asm!("sd $0, 8*10(sp)" :: "r"(hartid) :: "volatile");
+    llvm_asm!("sd $0, 8*11(sp)" :: "r"(fdt_addr) :: "volatile");
 
     trap_ret();
 }
