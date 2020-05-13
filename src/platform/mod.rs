@@ -1,7 +1,7 @@
 pub mod meowv64;
 pub mod qemu;
 
-pub trait PlatformOps : Sized {
+pub trait PlatformOps: Sized {
     fn on(hardid: usize) -> Self;
     fn early_init(&self, _cold: bool) {}
     fn final_init(&self, _cold: bool) {}

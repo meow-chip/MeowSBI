@@ -4,9 +4,7 @@ pub struct CLINT<const BASE: usize> {
 
 impl<const BASE: usize> CLINT<BASE> {
     pub fn with(hartid: usize) -> CLINT<BASE> {
-        CLINT {
-            hartid
-        }
+        CLINT { hartid }
     }
 
     pub fn setup_leader() {
@@ -20,25 +18,22 @@ impl<const BASE: usize> CLINT<BASE> {
         // Writes timecmp to no timer
         unsafe {
             core::ptr::write_volatile(
-                ((BASE + 0x4000) as *mut u64).offset(self.hartid as isize), 
-                core::u64::MAX >> 4 // Fix QEMU timer loop
+                ((BASE + 0x4000) as *mut u64).offset(self.hartid as isize),
+                core::u64::MAX >> 4, // Fix QEMU timer loop
             );
         }
 
         // Clears all software interrupts for current HART
         unsafe {
-            core::ptr::write_volatile(
-                (BASE as *mut u32).offset(self.hartid as isize), 
-                0
-            );
+            core::ptr::write_volatile((BASE as *mut u32).offset(self.hartid as isize), 0);
         }
     }
 
     pub fn set_timer(&self, instant: u64) {
         unsafe {
             core::ptr::write_volatile(
-                ((BASE + 0x4000) as *mut u64).offset(self.hartid as isize), 
-                instant 
+                ((BASE + 0x4000) as *mut u64).offset(self.hartid as isize),
+                instant,
             );
         }
     }

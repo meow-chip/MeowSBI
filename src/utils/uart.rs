@@ -26,7 +26,10 @@ impl<const BASE: usize> UART16550<BASE> {
             core::ptr::write_volatile((BASE + offsets::FCR) as *mut u8, 0x7); // FIFO enable + FIFO reset
 
             core::ptr::write_volatile((BASE + offsets::LCR) as *mut u8, 0x80); // DLAB
-            core::ptr::write_volatile((BASE + offsets::DLL) as *mut u8, (115200u64 / 9600u64) as u8);
+            core::ptr::write_volatile(
+                (BASE + offsets::DLL) as *mut u8,
+                (115200u64 / 9600u64) as u8,
+            );
             core::ptr::write_volatile((BASE + offsets::DLH) as *mut u8, 0);
 
             core::ptr::write_volatile((BASE + offsets::LCR) as *mut u8, 0x03 & !0x80u8); // WLEN8 & !DLAB
@@ -56,7 +59,6 @@ impl<const BASE: usize> UART16550<BASE> {
             }
 
             core::ptr::read_volatile((BASE + offsets::RBR) as *const u8)
-
         }
     }
 }

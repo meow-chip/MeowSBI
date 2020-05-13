@@ -1,6 +1,5 @@
-use core::sync::atomic::*;
 use core::mem::MaybeUninit;
-
+use core::sync::atomic::*;
 
 pub struct HartData {
     pub ipi_req: AtomicUsize,
@@ -31,7 +30,7 @@ impl<const STACK_SIZE: usize> HartStack<STACK_SIZE> {
 #[repr(C)] // Ensures that stack lies in the tail of this struct
 pub struct HartStorage<const STORE_SIZE: usize> {
     pub data: HartData,
-    pub stack: HartStack<{STORE_SIZE - core::mem::size_of::<HartData>()}>,
+    pub stack: HartStack<{ STORE_SIZE - core::mem::size_of::<HartData>() }>,
 }
 
 impl<const STORE_SIZE: usize> HartStorage<STORE_SIZE> {
@@ -43,16 +42,15 @@ impl<const STORE_SIZE: usize> HartStorage<STORE_SIZE> {
     }
 }
 
-type AllStorage = [HartStorage<{crate::HART_STORE_SIZE}>; crate::HART_CNT];
+type AllStorage = [HartStorage<{ crate::HART_STORE_SIZE }>; crate::HART_CNT];
 
 #[link_section = ".data"]
 pub static STORAGE: AllStorage = [HartStorage::new(); crate::HART_CNT];
 
-
 fn _assert_storage_size() {
     unsafe {
         core::mem::transmute::<AllStorage, [u8; crate::HART_STORE_SIZE * crate::HART_CNT]>(
-            [HartStorage::new(); crate::HART_CNT]
+            [HartStorage::new(); crate::HART_CNT],
         );
     }
 }

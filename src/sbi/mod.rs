@@ -23,7 +23,6 @@ pub enum SBIExt {
     IPI = 0x735049,
     RFENCE = 0x52464E43,
     TIME = 0x54494D45,
-
     // Sorry, no HSM
 }
 
@@ -38,7 +37,6 @@ const ALL_SBI_EXT: [SBIExt; 13] = [
     SBIExt::RemoteSFENCE_VMA_ASID,
     SBIExt::Shutdown,
     SBIExt::Base,
-
     SBIExt::IPI,
     SBIExt::RFENCE,
     SBIExt::TIME,
@@ -84,10 +82,7 @@ impl From<usize> for SBIRet {
 
 impl From<SBIErr> for SBIRet {
     fn from(e: SBIErr) -> Self {
-        Self {
-            error: e,
-            value: 0,
-        }
+        Self { error: e, value: 0 }
     }
 }
 
@@ -110,9 +105,9 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
             } else {
                 let func = unsafe { core::mem::transmute::<_, SBIBaseFunc>(func) };
                 match func {
-                    SBIBaseFunc::GetSBISpecVersion => (
-                        (SBI_SPEC_MAJOR << 24) | (SBI_SPEC_MINOR)
-                    ).into(),
+                    SBIBaseFunc::GetSBISpecVersion => {
+                        ((SBI_SPEC_MAJOR << 24) | (SBI_SPEC_MINOR)).into()
+                    }
                     SBIBaseFunc::GetSBIImplID => SBI_IMPL_ID.into(),
                     SBIBaseFunc::GetSBIImplVersion => SBI_IMPL_VERSION.into(),
                     SBIBaseFunc::ProbExtension => {
@@ -123,19 +118,42 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
                         }
                         return SBIErr::NotSupported.into();
                     }
-                    SBIBaseFunc::GetMVENDROID => riscv::register::mvendorid::read().map(|e| e.bits()).into(),
-                    SBIBaseFunc::GetMARCHID => riscv::register::marchid::read().map(|e| e.bits()).into(),
-                    SBIBaseFunc::GetMIMPLID => riscv::register::mimpid::read().map(|e| e.bits()).into(),
+                    SBIBaseFunc::GetMVENDROID => {
+                        riscv::register::mvendorid::read().map(|e| e.bits()).into()
+                    }
+                    SBIBaseFunc::GetMARCHID => {
+                        riscv::register::marchid::read().map(|e| e.bits()).into()
+                    }
+                    SBIBaseFunc::GetMIMPLID => {
+                        riscv::register::mimpid::read().map(|e| e.bits()).into()
+                    }
                 }
             }
-        },
+        }
         SBIExt::ConsolePutChar => {
             crate::serial::putc(a0 as u8);
             0usize.into()
-        },
-        SBIExt::ConsoleGetChar => {
-            (crate::serial::getc() as usize).into()
-        },
-        _ => todo!()
+        }
+        SBIExt::ConsoleGetChar => (crate::serial::getc() as usize).into(),
+        SBIExt::SetTimer => {
+            use crate::platform::PlatformOps;
+            crate::PLATFORM::local().set_timer(a0 as u64);
+
+            // TODO: mtip may show a false postive (when setting a larger mtimecmp), and stimer may never be cleared
+            let mtip = riscv::register::mip::read().mtimer();
+            if mtip {
+                unsafe {
+                    riscv::register::mie::clear_mtimer();
+                    riscv::register::mip::set_stimer();
+                }
+            } else {
+                unsafe {
+                    riscv::register::mie::set_mtimer();
+                    riscv::register::mip::clear_stimer();
+                }
+            }
+            0usize.into()
+        }
+        _ => todo!(),
     }
 }

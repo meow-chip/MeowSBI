@@ -1,5 +1,5 @@
-use core::sync::atomic::*;
 use crate::platform::PlatformOps;
+use core::sync::atomic::*;
 
 mod locking {
     use core::sync::atomic::*;

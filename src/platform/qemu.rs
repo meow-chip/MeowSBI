@@ -2,16 +2,16 @@ use super::PlatformOps;
 use crate::utils::clint::CLINT;
 use crate::utils::uart::UART16550;
 
-pub struct QEMU { hartid: usize }
+pub struct QEMU {
+    hartid: usize,
+}
 
 type QEMU_CLINT = CLINT<0x2000000>;
 type QEMU_UART = UART16550<0x10000000>;
 
 impl PlatformOps for QEMU {
     fn on(hartid: usize) -> Self {
-        QEMU {
-            hartid
-        }
+        QEMU { hartid }
     }
 
     fn early_init(&self, _cold: bool) {
