@@ -1,4 +1,6 @@
-pub struct UART16550<const BASE: usize>;
+pub struct UART16550 {
+    base: usize
+}
 
 mod offsets {
     pub const MULTIPLY: usize = 1;
@@ -20,45 +22,52 @@ mod masks {
     pub const DR: u8 = 1;
 }
 
-impl<const BASE: usize> UART16550<BASE> {
-    pub fn init() {
-        unsafe {
-            core::ptr::write_volatile((BASE + offsets::FCR) as *mut u8, 0x7); // FIFO enable + FIFO reset
+impl UART16550 {
+    pub fn new(base: usize) -> Self {
+        Self {
+            base
+        }
+    }
 
-            core::ptr::write_volatile((BASE + offsets::LCR) as *mut u8, 0x80); // DLAB
+    pub fn init(&self) {
+        unsafe {
+            core::ptr::write_volatile((self.base + offsets::FCR) as *mut u8, 0x7); // FIFO enable + FIFO reset
+
+            core::ptr::write_volatile((self.base + offsets::LCR) as *mut u8, 0x80); // DLAB
             core::ptr::write_volatile(
-                (BASE + offsets::DLL) as *mut u8,
+                (self.base + offsets::DLL) as *mut u8,
                 (115200u64 / 9600u64) as u8,
             );
-            core::ptr::write_volatile((BASE + offsets::DLH) as *mut u8, 0);
+            core::ptr::write_volatile((self.base + offsets::DLH) as *mut u8, 0);
 
-            core::ptr::write_volatile((BASE + offsets::LCR) as *mut u8, 0x03 & !0x80u8); // WLEN8 & !DLAB
-            core::ptr::write_volatile((BASE + offsets::MCR) as *mut u8, 0); // WLEN8 & !DLAB
-            core::ptr::write_volatile((BASE + offsets::IER) as *mut u8, 0); // No interrupt for now
+            core::ptr::write_volatile((self.base + offsets::LCR) as *mut u8, 0x03 & !0x80u8); // WLEN8 & !DLAB
+            core::ptr::write_volatile((self.base + offsets::MCR) as *mut u8, 0); // WLEN8 & !DLAB
+            core::ptr::write_volatile((self.base + offsets::IER) as *mut u8, 0); // No interrupt for now
         }
+
     }
 
-    pub fn putchar(c: u8) {
+    pub fn putchar(&self, c: u8) {
         unsafe {
-            core::ptr::write_volatile((BASE + offsets::THR) as *mut u8, c);
+            core::ptr::write_volatile((self.base + offsets::THR) as *mut u8, c);
 
             loop {
-                if core::ptr::read_volatile((BASE + offsets::LSR) as *const u8) & masks::THRE != 0 {
+                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::THRE != 0 {
                     break;
                 }
             }
         }
     }
 
-    pub fn getchar() -> u8 {
+    pub fn getchar(&self) -> u8 {
         unsafe {
             loop {
-                if core::ptr::read_volatile((BASE + offsets::LSR) as *const u8) & masks::DR != 0 {
+                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::DR != 0 {
                     break;
                 }
             }
 
-            core::ptr::read_volatile((BASE + offsets::RBR) as *const u8)
+            core::ptr::read_volatile((self.base + offsets::RBR) as *const u8)
         }
     }
 }

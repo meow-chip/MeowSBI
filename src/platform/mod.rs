@@ -2,7 +2,7 @@ pub mod meowv64;
 pub mod qemu;
 
 pub trait PlatformOps: Sized {
-    fn on(hardid: usize) -> Self;
+    fn new(hardid: usize, fdt: fdt::FDT) -> Self;
     fn early_init(&self, _cold: bool) {}
     fn final_init(&self, _cold: bool) {}
 
@@ -10,8 +10,4 @@ pub trait PlatformOps: Sized {
 
     fn put_char(&self, c: u8);
     fn get_char(&self) -> u8;
-
-    fn local() -> Self {
-        Self::on(riscv::register::mhartid::read())
-    }
 }

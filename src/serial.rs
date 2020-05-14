@@ -14,7 +14,7 @@ pub fn putc(c: u8) {
         spin_loop_hint();
     }
 
-    crate::PLATFORM::local().put_char(c);
+    crate::mem::local_data().platform().put_char(c);
 
     locking::WRITE.store(false, Ordering::Release);
 }
@@ -24,7 +24,7 @@ pub fn getc() -> u8 {
         spin_loop_hint();
     }
 
-    let ret = crate::PLATFORM::local().get_char();
+    let ret = crate::mem::local_data().platform().get_char();
 
     locking::WRITE.store(false, Ordering::Release);
 

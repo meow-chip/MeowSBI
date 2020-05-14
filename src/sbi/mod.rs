@@ -137,7 +137,7 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
         SBIExt::ConsoleGetChar => (crate::serial::getc() as usize).into(),
         SBIExt::SetTimer => {
             use crate::platform::PlatformOps;
-            crate::PLATFORM::local().set_timer(a0 as u64);
+            crate::mem::local_data().platform().set_timer(a0 as u64);
 
             // TODO: mtip may show a false postive (when setting a larger mtimecmp), and stimer may never be cleared
             let mtip = riscv::register::mip::read().mtimer();

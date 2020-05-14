@@ -45,8 +45,12 @@ type PLATFORM = platform::qemu::QEMU;
 #[no_mangle]
 extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
     let fdt_addr = relocate_fdt(fdt_addr);
+    let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();
 
-    PLATFORM::on(hartid).early_init(true);
+    // Initialize platform
+    unsafe {
+        core::ptr::write(mem::data(hartid).platform.as_mut_ptr(), PLATFORM::new(hartid, fdt));
+    }
 
     // Print MOTD
     mprint!(include_str!("./motd.txt")).unwrap();
