@@ -21,7 +21,7 @@ pub fn setup() {
         // TODO: U-mode interrupts
 
         // Setup MEDELEG
-        let medeleg = 0xFF & !(1<<9); // Delegate everything except S_CALL
+        let medeleg = 0xFFFF & !(1<<9); // Delegate everything except S_CALL
         llvm_asm!("csrw medeleg, $0" :: "r"(medeleg) :: "volatile"); 
 
         // Setup MTVEC
@@ -205,8 +205,12 @@ pub extern "C" fn wrapped_trap<'a>(tf: &'a mut TrapFrame) {
                 tf.reg[10], tf.reg[11], tf.reg[12],
             );
 
-            tf.reg[10] = ret.error as _;
-            tf.reg[11] = ret.value as _;
+            if ret.error == crate::sbi::SBIErr::Legacy {
+                tf.reg[10] = ret.value as _;
+            } else {
+                tf.reg[10] = ret.error as _;
+                tf.reg[11] = ret.value as _;
+            }
 
             // Increment MEPC
             let mepc = riscv::register::mepc::read();

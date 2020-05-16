@@ -55,9 +55,10 @@ pub enum SBIBaseFunc {
 }
 
 #[repr(isize)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum SBIErr {
     Success = 0,
+    Legacy = 1,
     Failed = -1,
     NotSupported = -2,
     InvalidParam = -3,
@@ -134,7 +135,10 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
             crate::serial::putc(a0 as u8);
             0usize.into()
         }
-        SBIExt::ConsoleGetChar => (crate::serial::getc() as usize).into(),
+        SBIExt::ConsoleGetChar => SBIRet {
+            error: SBIErr::Legacy,
+            value: crate::serial::getc() as usize
+        },
         SBIExt::SetTimer => {
             use crate::platform::PlatformOps;
             crate::mem::local_data().platform().set_timer(a0 as u64);

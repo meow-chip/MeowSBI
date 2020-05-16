@@ -37,6 +37,10 @@ macro_rules! HART_STORE_SHIFT_STR {
 
 type PLATFORM = platform::qemu::QEMU;
 
+use core::sync::atomic::*;
+static FDT_RELOCATE_TOKEN: AtomicBool = AtomicBool::new(false);
+static FDT_RELOCATED_ADDR: AtomicUsize = AtomicUsize::new(0);
+
 /**
  * MeowSBI entry point
  * Primary boot entry is at boot::entry
@@ -44,7 +48,19 @@ type PLATFORM = platform::qemu::QEMU;
 
 #[no_mangle]
 extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
-    let fdt_addr = relocate_fdt(fdt_addr);
+    let fdt_addr = if hartid == 0 {
+        let fdt_addr = relocate_fdt(fdt_addr);
+        FDT_RELOCATED_ADDR.store(fdt_addr as usize, Ordering::Relaxed);
+        FDT_RELOCATE_TOKEN.store(true, Ordering::Release);
+        fdt_addr
+    } else {
+        while FDT_RELOCATE_TOKEN.load(Ordering::Acquire) {
+            spin_loop_hint();
+        }
+
+        FDT_RELOCATED_ADDR.load(Ordering::Relaxed) as *const u8
+    };
+
     let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();
 
     // Initialize platform

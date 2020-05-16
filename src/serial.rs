@@ -10,23 +10,27 @@ mod locking {
 }
 
 pub fn putc(c: u8) {
+    /*
     while locking::WRITE.swap(true, Ordering::Acquire) {
         spin_loop_hint();
     }
+    */
 
     crate::mem::local_data().platform().put_char(c);
 
-    locking::WRITE.store(false, Ordering::Release);
+    // locking::WRITE.store(false, Ordering::Release);
 }
 
 pub fn getc() -> u8 {
+    /*
     while locking::READ.swap(true, Ordering::Acquire) {
         spin_loop_hint();
     }
+    */
 
     let ret = crate::mem::local_data().platform().get_char();
 
-    locking::WRITE.store(false, Ordering::Release);
+    // locking::READ.store(false, Ordering::Release);
 
     ret
 }
