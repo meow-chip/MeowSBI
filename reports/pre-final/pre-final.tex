@@ -22,8 +22,8 @@
 
   \begin{description}
     \item[rCore] \url{https://github.com/rcore-os/rCore}
-    \item[MeowV64] 某个 RISC-V 处理器
-    \item[MeowSBI] 目前在这个 RISC-V 处理器上运行的 M 态软件
+    \item[MeowV64] 某个 RISC-V 处理器: \url{https://github.com/meow-chip/MeowV64}
+    \item[MeowSBI] 某个 RISC-V 的 M 态软件: \url{https://github.com/meow-chip/MeowSBI}
   \end{description}
 
   \pause
@@ -76,6 +76,15 @@
   \begin{itemize}
     \item 找到了 QEMU 的一个和 timer 相关的 bug
     \item 修复了 rCore 的一点 Bug
+  \end{itemize}
+
+  \pause
+
+  \vspace{1em}
+  \textbf{一些尝试}
+  \begin{itemize}
+    \item 使用尽量少的裸汇编
+    \item 使用尽量多的静态派发
   \end{itemize}
 \end{frame}
 
