@@ -1,0 +1,113 @@
+\documentclass[UTF-8]{ctexbeamer}
+\usetheme{Boadilla}
+
+\usepackage{listing}
+\usepackage{minted}
+
+\title{rCore on MeowV64}
+\subtitle{Pre-final report}
+
+\author{g04 - 刘晓义}
+\date{2020-5}
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}
+  \frametitle{What was this?}
+
+  向 MeowV64 添加足够的功能，可以实现多核并行，并实现 MeowSBI 作为其 M 态软件，在其上运行 rCore.
+
+  \begin{description}
+    \item[rCore] \url{https://github.com/rcore-os/rCore}
+    \item[MeowV64] 某个 RISC-V 处理器
+    \item[MeowSBI] 目前在这个 RISC-V 处理器上运行的 M 态软件
+  \end{description}
+
+  \pause
+
+  \begin{center}
+    \begin{tabular}{|ll|} \hline
+      OS & \textbf{rCore}\\
+      \hline
+      Firmware & \textbf{Meow / OpenSBI} \\
+      \hline
+      Processor & \textbf{MeowV64}\\
+      \hline
+    \end{tabular}
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{About the processor}
+
+  \begin{itemize}
+    \item 添加了多核支持，包括 A-extension, L2 Cache + Coherence protocol
+    \item 添加了 S 态和 U 态
+    \item 添加了页表以及相关的 PTW 接口
+    \item 添加了 CLINT，实现了跨核软件中断和时钟中断
+    \item FDT
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{About the software}
+
+  实现了 rCore 需要的 SBI 功能
+
+  \begin{itemize}
+    \item relocate FDT
+    \item CLINT、串口初始化
+    \item 提供部分 SBI call
+    \begin{itemize}
+      \item BASE extension
+      \item TIME extension
+      \item Console(Put|Get)Char
+      \item SetTimer
+      \item Shutdown
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{About other stuff}
+
+  \begin{itemize}
+    \item 找到了 QEMU 的一个和 timer 相关的 bug
+    \item 修复了 rCore 的一点 Bug
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Status \& What's next}
+
+  现在，OpenSBI 和 MeowSBI 都可以:
+  \begin{itemize}
+    \item 在\textbf{单核 MeowV64 硬件} 上执行简单的 Payload
+    \item 在\textbf{多核 MeowV64 仿真} 中正确初始化 rCore
+    \item 在\textbf{多核 QEMU} 中基本完整正确运行 rCore 的用户态
+  \end{itemize}
+
+  \pause
+  \vspace{1em}
+
+  还没搞成的事情：
+  \begin{itemize}
+    \item MeowSBI 的 Release 版本还跑不动
+    \item FPGA 片上空间仍然紧缺
+    \item PLIC 以及板上的外设的连接
+    \begin{itemize}
+      \item PLIC 有模块化的实现，可以作为总线上的设备
+      \item 需要更新 FDT
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Q \& A}
+
+  Thanks!
+\end{frame}
+
+\end{document}
