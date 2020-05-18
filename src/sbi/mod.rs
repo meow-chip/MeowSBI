@@ -221,11 +221,11 @@ fn ipi_ptr(p: usize, i: crate::ipi::IPIReq) -> SBIRet {
         unsafe {
             llvm_asm!(r#"
             li t0, (1<<17)
-            mv t1, $0
+            mv t1, $1
             csrrs t0, mstatus, t0
             lw t1, 0(t1)
             csrw mstatus, t0
-            mv $1, t1
+            mv $0, t1
             "# : "=r"(mask) : "r"(p) :: "volatile");
         }
     }
