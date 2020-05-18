@@ -10,13 +10,13 @@
 #![feature(const_in_array_repeat_expressions)]
 #![cfg_attr(not(test), no_std)]
 #![no_main]
-
 #![allow(unused_attributes)]
 #![link_args = "-Tsrc/ld/qemu.ld"]
 
 use riscv;
 
 mod boot;
+mod ipi;
 mod lang_items;
 mod mem;
 mod platform;
@@ -24,7 +24,6 @@ mod sbi;
 mod serial;
 mod trap;
 mod utils;
-mod ipi;
 
 use platform::PlatformOps;
 
@@ -67,7 +66,10 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
 
     // Initialize platform
     unsafe {
-        core::ptr::write(mem::data(hartid).platform.as_mut_ptr(), PLATFORM::new(hartid, fdt));
+        core::ptr::write(
+            mem::data(hartid).platform.as_mut_ptr(),
+            PLATFORM::new(hartid, fdt),
+        );
     }
 
     // Print MOTD
@@ -89,7 +91,8 @@ fn next_boot(hartid: usize, fdt_addr: *const u8) -> ! {
 }
 
 static mut FDT_STORAGE: [u8; 16384] = [0; 16384];
-static FDT_RELOCATE_TICKET: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0); 
+static FDT_RELOCATE_TICKET: core::sync::atomic::AtomicUsize =
+    core::sync::atomic::AtomicUsize::new(0);
 
 fn relocate_fdt(original: *const u8) -> *const u8 {
     use core::sync::atomic::Ordering;

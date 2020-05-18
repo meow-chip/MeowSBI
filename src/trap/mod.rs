@@ -21,8 +21,8 @@ pub fn setup() {
         // TODO: U-mode interrupts
 
         // Setup MEDELEG
-        let medeleg = 0xFFFF & !(1<<9); // Delegate everything except S_CALL
-        llvm_asm!("csrw medeleg, $0" :: "r"(medeleg) :: "volatile"); 
+        let medeleg = 0xFFFF & !(1 << 9); // Delegate everything except S_CALL
+        llvm_asm!("csrw medeleg, $0" :: "r"(medeleg) :: "volatile");
 
         // Setup MTVEC
         riscv::register::mtvec::write(
@@ -227,6 +227,6 @@ pub extern "C" fn wrapped_trap<'a>(tf: &'a mut TrapFrame) {
         t => {
             crate::mprintln!("Unexpected trap: {:?}", t).unwrap();
             panic!();
-        },
+        }
     }
 }

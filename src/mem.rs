@@ -1,7 +1,7 @@
+use crate::ipi::*;
+use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::sync::atomic::*;
-use core::cell::UnsafeCell;
-use crate::ipi::*;
 
 pub struct HartData {
     pub ipi_req: UnsafeCell<IPIReq>,
@@ -20,9 +20,7 @@ impl HartData {
 
     // This function assumes that the platform is properly initialized during the entry of crate::boot
     pub fn platform(&mut self) -> &mut crate::PLATFORM {
-        unsafe {
-            &mut * self.platform.as_mut_ptr()
-        }
+        unsafe { &mut *self.platform.as_mut_ptr() }
     }
 
     pub fn ipi_set(&self, req: IPIReq) {

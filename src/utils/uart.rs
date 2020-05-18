@@ -1,5 +1,5 @@
 pub struct UART16550 {
-    base: usize
+    base: usize,
 }
 
 mod offsets {
@@ -24,9 +24,7 @@ mod masks {
 
 impl UART16550 {
     pub fn new(base: usize) -> Self {
-        Self {
-            base
-        }
+        Self { base }
     }
 
     pub fn init(&self) {
@@ -42,9 +40,9 @@ impl UART16550 {
 
             core::ptr::write_volatile((self.base + offsets::LCR) as *mut u8, 0x03 & !0x80u8); // WLEN8 & !DLAB
             core::ptr::write_volatile((self.base + offsets::MCR) as *mut u8, 0); // WLEN8 & !DLAB
-            core::ptr::write_volatile((self.base + offsets::IER) as *mut u8, 0); // No interrupt for now
+            core::ptr::write_volatile((self.base + offsets::IER) as *mut u8, 0);
+            // No interrupt for now
         }
-
     }
 
     pub fn putchar(&self, c: u8) {
@@ -52,7 +50,9 @@ impl UART16550 {
             core::ptr::write_volatile((self.base + offsets::THR) as *mut u8, c);
 
             loop {
-                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::THRE != 0 {
+                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::THRE
+                    != 0
+                {
                     break;
                 }
             }
@@ -62,7 +62,9 @@ impl UART16550 {
     pub fn getchar(&self) -> u8 {
         unsafe {
             loop {
-                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::DR != 0 {
+                if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::DR
+                    != 0
+                {
                     break;
                 }
             }

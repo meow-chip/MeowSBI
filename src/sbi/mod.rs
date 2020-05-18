@@ -138,45 +138,43 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
         }
         SBIExt::ConsoleGetChar => SBIRet {
             error: SBIErr::Legacy,
-            value: crate::serial::getc() as usize
+            value: crate::serial::getc() as usize,
         },
         SBIExt::SetTimer => set_timer(a0),
         SBIExt::ClearIPI => unsafe {
             riscv::register::mip::clear_ssoft();
             0usize.into()
         },
-        SBIExt::SendIPI => {
-            ipi_ptr(a0, crate::ipi::IPIReq::S_IPI)
-        },
-        SBIExt::RemoteFENCE_I => {
-            ipi_ptr(a0, crate::ipi::IPIReq::FENCE_I)
-        },
-        SBIExt::RemoteSFENCE_VMA => {
-            ipi_ptr(a0, crate::ipi::IPIReq::SFENCE_VMA)
-        },
-        SBIExt::RemoteSFENCE_VMA_ASID => {
-            ipi(unsafe { *(a0 as *const usize) }, 0, crate::ipi::IPIReq::SFENCE_VMA)
-        },
-        SBIExt::Shutdown => { loop { core::sync::atomic::spin_loop_hint() } } // TOOD: proper impl
+        SBIExt::SendIPI => ipi_ptr(a0, crate::ipi::IPIReq::S_IPI),
+        SBIExt::RemoteFENCE_I => ipi_ptr(a0, crate::ipi::IPIReq::FENCE_I),
+        SBIExt::RemoteSFENCE_VMA => ipi_ptr(a0, crate::ipi::IPIReq::SFENCE_VMA),
+        SBIExt::RemoteSFENCE_VMA_ASID => ipi(
+            unsafe { *(a0 as *const usize) },
+            0,
+            crate::ipi::IPIReq::SFENCE_VMA,
+        ),
+        SBIExt::Shutdown => loop {
+            core::sync::atomic::spin_loop_hint()
+        }, // TOOD: proper impl
 
-        SBIExt::IPI => if func != 0 {
-            SBIErr::NotSupported.into()
-        } else {
-            ipi(a0, a1, crate::ipi::IPIReq::S_IPI)
-        },
+        SBIExt::IPI => {
+            if func != 0 {
+                SBIErr::NotSupported.into()
+            } else {
+                ipi(a0, a1, crate::ipi::IPIReq::S_IPI)
+            }
+        }
         SBIExt::RFENCE => match func {
-            0 => {
-                ipi(a0, a1, crate::ipi::IPIReq::FENCE_I)
-            },
-            1 | 2 => {
-                ipi(a0, a1, crate::ipi::IPIReq::SFENCE_VMA)
-            },
-            _ => SBIErr::NotSupported.into()
+            0 => ipi(a0, a1, crate::ipi::IPIReq::FENCE_I),
+            1 | 2 => ipi(a0, a1, crate::ipi::IPIReq::SFENCE_VMA),
+            _ => SBIErr::NotSupported.into(),
         },
-        SBIExt::TIME => if func != 0 {
-            SBIErr::NotSupported.into()
-        } else {
-            set_timer(a0)
+        SBIExt::TIME => {
+            if func != 0 {
+                SBIErr::NotSupported.into()
+            } else {
+                set_timer(a0)
+            }
         }
     }
 }
@@ -230,4 +228,6 @@ fn ipi_ptr(p: usize, i: crate::ipi::IPIReq) -> SBIRet {
     }
 
     ipi(mask, 0, i)
+}
+(mask, 0, i)
 }

@@ -39,7 +39,7 @@ pub fn send_ipi(mask: usize, req: IPIReq) {
             platform.send_ipi(current);
         }
 
-        sending = sending ^ (1<<current);
+        sending = sending ^ (1 << current);
     }
 
     while waiting != 0 {
@@ -51,7 +51,7 @@ pub fn send_ipi(mask: usize, req: IPIReq) {
             crate::mem::data(current).ipi_wait();
         }
 
-        waiting = waiting ^ (1<<current);
+        waiting = waiting ^ (1 << current);
     }
 
     LOCK.store(false, Ordering::Release);

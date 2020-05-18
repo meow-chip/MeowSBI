@@ -15,10 +15,14 @@ impl PlatformOps for QEMU {
         let mut uart_addr = None;
         for node in fdt.nodes() {
             if node.is_compatible_with("clint0") {
-                let addr = node.property("reg").map(|p| p.raw().split_at(core::mem::size_of::<usize>()).0);
+                let addr = node
+                    .property("reg")
+                    .map(|p| p.raw().split_at(core::mem::size_of::<usize>()).0);
                 clint_addr = addr.map(|p| usize::from_be_bytes(p.try_into().unwrap()));
             } else if node.is_compatible_with("ns16550a") {
-                let addr = node.property("reg").map(|p| p.raw().split_at(core::mem::size_of::<usize>()).0);
+                let addr = node
+                    .property("reg")
+                    .map(|p| p.raw().split_at(core::mem::size_of::<usize>()).0);
                 uart_addr = addr.map(|p| usize::from_be_bytes(p.try_into().unwrap()));
             }
         }
