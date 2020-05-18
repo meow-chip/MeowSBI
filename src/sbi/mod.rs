@@ -4,6 +4,7 @@ const SBI_IMPL_VERSION: usize = 0x1;
 const SBI_SPEC_MAJOR: usize = 0;
 const SBI_SPEC_MINOR: usize = 2;
 
+#[allow(dead_code)]
 #[repr(usize)]
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
@@ -44,6 +45,7 @@ const ALL_SBI_EXT: [SBIExt; 13] = [
 
 #[repr(usize)]
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub enum SBIBaseFunc {
     GetSBISpecVersion = 0x0,
     GetSBIImplID = 0x1,
@@ -56,6 +58,7 @@ pub enum SBIBaseFunc {
 
 #[repr(isize)]
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum SBIErr {
     Success = 0,
     Legacy = 1,
@@ -228,6 +231,4 @@ fn ipi_ptr(p: usize, i: crate::ipi::IPIReq) -> SBIRet {
     }
 
     ipi(mask, 0, i)
-}
-(mask, 0, i)
 }

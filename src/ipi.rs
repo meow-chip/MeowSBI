@@ -1,6 +1,6 @@
 use core::sync::atomic::*;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum IPIReq {
     S_IPI, // S-mode IPI
     FENCE_I,
@@ -58,6 +58,7 @@ pub fn send_ipi(mask: usize, req: IPIReq) {
 }
 
 pub fn handle_ipi(req: IPIReq) {
+    // crate::mprintln!("[MeowSBI] IPI: {:?}", req).unwrap();
     match req {
         IPIReq::S_IPI => unsafe { riscv::register::mip::set_ssoft() },
         IPIReq::FENCE_I => unsafe { llvm_asm!("FENCE.I") },
