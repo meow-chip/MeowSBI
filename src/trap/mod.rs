@@ -11,7 +11,7 @@ pub struct TrapFrame {
 pub fn setup() {
     unsafe {
         // Setup MEDELEG, only handles S_CALL for now
-        let memask = 0xFFFF - (1 << 9);
+        let memask: usize = core::usize::MAX - (1 << 9);
         llvm_asm!("csrw medeleg, $0" :: "r"(memask) :: "volatile");
 
         // Setup MIDELEG
@@ -25,8 +25,6 @@ pub fn setup() {
         llvm_asm!("csrw medeleg, $0" :: "r"(medeleg) :: "volatile"); 
 
         // Setup MTVEC
-        // let addr = trap_enter as usize;
-        // llvm_asm!("csrw mtvec, $0" :: "r"(addr) :: "volatile");
         riscv::register::mtvec::write(
             trap_enter as usize,
             riscv::register::mtvec::TrapMode::Direct,
@@ -223,6 +221,12 @@ pub extern "C" fn wrapped_trap<'a>(tf: &'a mut TrapFrame) {
                 riscv::register::mie::clear_mtimer();
             }
         }
-        _ => todo!(),
+        Trap::Interrupt(Interrupt::MachineSoft) => {
+            crate::mem::local_data().ipi_handle();
+        }
+        t => {
+            crate::mprintln!("Unexpected trap: {:?}", t).unwrap();
+            panic!();
+        },
     }
 }

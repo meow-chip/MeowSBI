@@ -1,17 +1,19 @@
 use core::mem::MaybeUninit;
 use core::sync::atomic::*;
+use core::cell::UnsafeCell;
+use crate::ipi::*;
 
 pub struct HartData {
-    pub ipi_req: AtomicUsize,
-    pub ipi_lock: AtomicBool,
+    pub ipi_req: UnsafeCell<IPIReq>,
+    pub ipi_pending: AtomicBool,
     pub platform: MaybeUninit<crate::PLATFORM>,
 }
 
 impl HartData {
     pub const fn new() -> Self {
         HartData {
-            ipi_req: AtomicUsize::new(0),
-            ipi_lock: AtomicBool::new(false),
+            ipi_req: UnsafeCell::new(IPIReq::S_IPI), // Random value
+            ipi_pending: AtomicBool::new(false),
             platform: MaybeUninit::uninit(),
         }
     }
@@ -21,6 +23,31 @@ impl HartData {
         unsafe {
             &mut * self.platform.as_mut_ptr()
         }
+    }
+
+    pub fn ipi_set(&self, req: IPIReq) {
+        unsafe { *self.ipi_req.get() = req };
+
+        self.ipi_pending.store(true, Ordering::Release);
+    }
+
+    pub fn ipi_wait(&self) {
+        while self.ipi_pending.load(Ordering::Acquire) {
+            spin_loop_hint();
+        }
+    }
+
+    pub fn ipi_handle(&mut self) {
+        use crate::platform::PlatformOps;
+
+        while self.ipi_pending.load(Ordering::Acquire) == false {
+            spin_loop_hint();
+        }
+
+        let req = unsafe { *self.ipi_req.get() };
+        crate::ipi::handle_ipi(req);
+        self.platform().clear_ipi();
+        self.ipi_pending.store(false, Ordering::Release);
     }
 }
 
@@ -56,6 +83,7 @@ type AllStorage = [HartStorage<{ crate::HART_STORE_SIZE }>; crate::HART_CNT];
 #[link_section = ".data"]
 pub static mut STORAGE: AllStorage = [HartStorage::new(); crate::HART_CNT];
 
+/*
 fn _assert_storage_size() {
     unsafe {
         core::mem::transmute::<AllStorage, [u8; crate::HART_STORE_SIZE * crate::HART_CNT]>(
@@ -63,6 +91,7 @@ fn _assert_storage_size() {
         );
     }
 }
+*/
 
 pub fn data(hartid: usize) -> &'static mut HartData {
     unsafe { &mut STORAGE[hartid].data }

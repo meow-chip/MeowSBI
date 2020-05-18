@@ -97,8 +97,9 @@ impl From<Option<usize>> for SBIRet {
 }
 
 pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet {
+    // FIXME: hart_mask_base
     let ext = unsafe { core::mem::transmute(ext) };
-    // crate::mprintln!("SBI Call: {:?}", ext).unwrap();
+    // crate::mprintln!("[MeowSBI] SBI Call: {:?}", ext).unwrap();
     match ext {
         SBIExt::Base => {
             if func > SBIBaseFunc::GetMIMPLID as _ {
@@ -139,25 +140,94 @@ pub fn call(ext: usize, func: usize, a0: usize, a1: usize, a2: usize) -> SBIRet 
             error: SBIErr::Legacy,
             value: crate::serial::getc() as usize
         },
-        SBIExt::SetTimer => {
-            use crate::platform::PlatformOps;
-            crate::mem::local_data().platform().set_timer(a0 as u64);
-
-            // TODO: mtip may show a false postive (when setting a larger mtimecmp), and stimer may never be cleared
-            let mtip = riscv::register::mip::read().mtimer();
-            if mtip {
-                unsafe {
-                    riscv::register::mie::clear_mtimer();
-                    riscv::register::mip::set_stimer();
-                }
-            } else {
-                unsafe {
-                    riscv::register::mie::set_mtimer();
-                    riscv::register::mip::clear_stimer();
-                }
-            }
+        SBIExt::SetTimer => set_timer(a0),
+        SBIExt::ClearIPI => unsafe {
+            riscv::register::mip::clear_ssoft();
             0usize.into()
+        },
+        SBIExt::SendIPI => {
+            ipi_ptr(a0, crate::ipi::IPIReq::S_IPI)
+        },
+        SBIExt::RemoteFENCE_I => {
+            ipi_ptr(a0, crate::ipi::IPIReq::FENCE_I)
+        },
+        SBIExt::RemoteSFENCE_VMA => {
+            ipi_ptr(a0, crate::ipi::IPIReq::SFENCE_VMA)
+        },
+        SBIExt::RemoteSFENCE_VMA_ASID => {
+            ipi(unsafe { *(a0 as *const usize) }, 0, crate::ipi::IPIReq::SFENCE_VMA)
+        },
+        SBIExt::Shutdown => { loop { core::sync::atomic::spin_loop_hint() } } // TOOD: proper impl
+
+        SBIExt::IPI => if func != 0 {
+            SBIErr::NotSupported.into()
+        } else {
+            ipi(a0, a1, crate::ipi::IPIReq::S_IPI)
+        },
+        SBIExt::RFENCE => match func {
+            0 => {
+                ipi(a0, a1, crate::ipi::IPIReq::FENCE_I)
+            },
+            1 | 2 => {
+                ipi(a0, a1, crate::ipi::IPIReq::SFENCE_VMA)
+            },
+            _ => SBIErr::NotSupported.into()
+        },
+        SBIExt::TIME => if func != 0 {
+            SBIErr::NotSupported.into()
+        } else {
+            set_timer(a0)
         }
-        _ => todo!(),
     }
+}
+
+fn set_timer(timer: usize) -> SBIRet {
+    use crate::platform::PlatformOps;
+    crate::mem::local_data().platform().set_timer(timer as u64);
+
+    // TODO: mtip may show a false postive (when setting a larger mtimecmp), and stimer may never be cleared
+    let mtip = riscv::register::mip::read().mtimer();
+    if mtip {
+        unsafe {
+            riscv::register::mie::clear_mtimer();
+            riscv::register::mip::set_stimer();
+        }
+    } else {
+        unsafe {
+            riscv::register::mie::set_mtimer();
+            riscv::register::mip::clear_stimer();
+        }
+    }
+    0usize.into()
+}
+
+fn ipi(mask: usize, base: usize, ipi: crate::ipi::IPIReq) -> SBIRet {
+    // TODO: handles HART_COUNT > 64
+    let mask = if base == core::usize::MAX {
+        core::usize::MAX
+    } else {
+        mask << base
+    };
+
+    crate::ipi::send_ipi(mask, ipi);
+    0usize.into()
+}
+
+fn ipi_ptr(p: usize, i: crate::ipi::IPIReq) -> SBIRet {
+    let mut mask = core::usize::MAX;
+    if p != 0 {
+        // MPRV = 1, then read
+        unsafe {
+            llvm_asm!(r#"
+            li t0, (1<<17)
+            mv t1, $0
+            csrrs t0, mstatus, t0
+            ld t1, 0(t1)
+            csrw mstatus, t0
+            mv $1, t0
+            "# : "=r"(mask) : "r"(p) :: "volatile");
+        }
+    }
+
+    ipi(mask, 0, i)
 }

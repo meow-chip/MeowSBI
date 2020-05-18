@@ -25,9 +25,7 @@ impl CLINT {
         }
 
         // Clears all software interrupts for current HART
-        unsafe {
-            core::ptr::write_volatile((self.base as *mut u32).offset(self.hartid as isize), 0);
-        }
+        self.clear_soft();
     }
 
     pub fn set_timer(&self, instant: u64) {
@@ -36,6 +34,18 @@ impl CLINT {
                 (self.base.offset(0x4000) as *mut u64).offset(self.hartid as isize),
                 instant,
             );
+        }
+    }
+
+    pub fn send_soft(&self, target: usize) {
+        unsafe {
+            core::ptr::write_volatile((self.base as *mut u32).offset(target as isize), 1);
+        }
+    }
+
+    pub fn clear_soft(&self) {
+        unsafe {
+            core::ptr::write_volatile((self.base as *mut u32).offset(self.hartid as isize), 0);
         }
     }
 }

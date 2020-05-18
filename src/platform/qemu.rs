@@ -51,4 +51,12 @@ impl PlatformOps for QEMU {
     fn get_char(&self) -> u8 {
         self.serial.getchar()
     }
+
+    fn send_ipi(&self, hartid: usize) {
+        self.clint.send_soft(hartid);
+    }
+
+    fn clear_ipi(&self) {
+        self.clint.clear_soft();
+    }
 }

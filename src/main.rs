@@ -7,6 +7,7 @@
     global_asm,
     const_transmute
 )]
+#![feature(const_in_array_repeat_expressions)]
 #![cfg_attr(not(test), no_std)]
 #![no_main]
 
@@ -23,10 +24,11 @@ mod sbi;
 mod serial;
 mod trap;
 mod utils;
+mod ipi;
 
 use platform::PlatformOps;
 
-const HART_CNT: usize = 1;
+const HART_CNT: usize = 4;
 const HART_STORE_SIZE: usize = 4096;
 #[macro_export]
 macro_rules! HART_STORE_SHIFT_STR {
@@ -39,7 +41,7 @@ type PLATFORM = platform::qemu::QEMU;
 
 use core::sync::atomic::*;
 static FDT_RELOCATE_TOKEN: AtomicBool = AtomicBool::new(false);
-static FDT_RELOCATED_ADDR: AtomicUsize = AtomicUsize::new(0);
+static mut FDT_RELOCATED_ADDR: *const u8 = 0 as *const u8;
 
 /**
  * MeowSBI entry point
@@ -50,15 +52,15 @@ static FDT_RELOCATED_ADDR: AtomicUsize = AtomicUsize::new(0);
 extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
     let fdt_addr = if hartid == 0 {
         let fdt_addr = relocate_fdt(fdt_addr);
-        FDT_RELOCATED_ADDR.store(fdt_addr as usize, Ordering::Relaxed);
+        unsafe { FDT_RELOCATED_ADDR = fdt_addr };
         FDT_RELOCATE_TOKEN.store(true, Ordering::Release);
         fdt_addr
     } else {
-        while FDT_RELOCATE_TOKEN.load(Ordering::Acquire) {
+        while !FDT_RELOCATE_TOKEN.load(Ordering::Acquire) {
             spin_loop_hint();
         }
 
-        FDT_RELOCATED_ADDR.load(Ordering::Relaxed) as *const u8
+        unsafe { FDT_RELOCATED_ADDR }
     };
 
     let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();

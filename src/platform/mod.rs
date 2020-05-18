@@ -10,4 +10,7 @@ pub trait PlatformOps: Sized {
 
     fn put_char(&self, c: u8);
     fn get_char(&self) -> u8;
+
+    fn send_ipi(&self, hartid: usize);
+    fn clear_ipi(&self);
 }
