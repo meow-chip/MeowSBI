@@ -49,6 +49,7 @@ impl UART16550 {
         unsafe {
             core::ptr::write_volatile((self.base + offsets::THR) as *mut u8, c);
 
+            /*
             loop {
                 if core::ptr::read_volatile((self.base + offsets::LSR) as *const u8) & masks::THRE
                     != 0
@@ -56,6 +57,7 @@ impl UART16550 {
                     break;
                 }
             }
+            */
         }
     }
 

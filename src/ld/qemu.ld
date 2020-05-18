@@ -7,6 +7,7 @@ SECTIONS
 {
   . = BASE_ADDRESS;
   start = .;
+  _fw_start = .;
 
   .text : {
     *(.text.entry)
@@ -34,4 +35,6 @@ SECTIONS
   .sbss : {
     *(.sbss .sbss.*)
   }
+
+  _fw_end = .;
 }

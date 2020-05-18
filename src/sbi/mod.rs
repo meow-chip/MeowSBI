@@ -223,9 +223,9 @@ fn ipi_ptr(p: usize, i: crate::ipi::IPIReq) -> SBIRet {
             li t0, (1<<17)
             mv t1, $0
             csrrs t0, mstatus, t0
-            ld t1, 0(t1)
+            lw t1, 0(t1)
             csrw mstatus, t0
-            mv $1, t0
+            mv $1, t1
             "# : "=r"(mask) : "r"(p) :: "volatile");
         }
     }

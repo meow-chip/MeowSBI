@@ -10,11 +10,13 @@ pub enum IPIReq {
 static LOCK: AtomicBool = AtomicBool::new(false);
 
 pub fn send_ipi(mask: usize, req: IPIReq) {
+    // crate::mprintln!("[MeowSBI] IPI send: {:?}", req).unwrap();
+
     let started_mask = (1 << crate::HART_CNT) - 1;
     let mask = mask & started_mask;
 
     // Acquire lock
-    while LOCK.swap(true, Ordering::Acquire) {
+    while LOCK.compare_and_swap(false, true, Ordering::Acquire) {
         spin_loop_hint();
         if riscv::register::mip::read().msoft() {
             // Other core triggered an IPI, handle right now
@@ -48,7 +50,7 @@ pub fn send_ipi(mask: usize, req: IPIReq) {
         if current == cur_hart {
             // Does nothing
         } else {
-            crate::mem::data(current).ipi_wait();
+            // crate::mem::data(current).ipi_wait();
         }
 
         waiting = waiting ^ (1 << current);
@@ -58,7 +60,7 @@ pub fn send_ipi(mask: usize, req: IPIReq) {
 }
 
 pub fn handle_ipi(req: IPIReq) {
-    // crate::mprintln!("[MeowSBI] IPI: {:?}", req).unwrap();
+    // crate::mprintln!("[MeowSBI] IPI recv: {:?}", req).unwrap();
     match req {
         IPIReq::S_IPI => unsafe { riscv::register::mip::set_ssoft() },
         IPIReq::FENCE_I => unsafe { llvm_asm!("FENCE.I") },

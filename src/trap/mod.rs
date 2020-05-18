@@ -195,6 +195,8 @@ pub extern "C" fn wrapped_trap<'a>(tf: &'a mut TrapFrame) {
     use riscv::register::mcause::{read, Exception, Interrupt, Trap};
     let mcause = read();
 
+    // crate::mprintln!("[MeowSBI] trap: {:?}", mcause.cause()).unwrap();
+
     match mcause.cause() {
         Trap::Exception(Exception::SupervisorEnvCall) => {
             let ret = crate::sbi::call(

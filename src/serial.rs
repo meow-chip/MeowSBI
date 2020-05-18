@@ -7,11 +7,13 @@ mod locking {
     pub static READ: AtomicBool = AtomicBool::new(false);
     #[link_section = ".sdata"]
     pub static WRITE: AtomicBool = AtomicBool::new(false);
+    #[link_section = ".sdata"]
+    pub static PRINT: AtomicBool = AtomicBool::new(false);
 }
 
 pub fn putc(c: u8) {
     /*
-    while locking::WRITE.swap(true, Ordering::Acquire) {
+    while locking::WRITE.compare_and_swap(false, true, Ordering::Acquire) {
         spin_loop_hint();
     }
     */
@@ -22,15 +24,13 @@ pub fn putc(c: u8) {
 }
 
 pub fn getc() -> u8 {
-    /*
-    while locking::READ.swap(true, Ordering::Acquire) {
+    while locking::READ.compare_and_swap(false, true, Ordering::Acquire) {
         spin_loop_hint();
     }
-    */
 
     let ret = crate::mem::local_data().platform().get_char();
 
-    // locking::READ.store(false, Ordering::Release);
+    locking::READ.store(false, Ordering::Release);
 
     ret
 }
@@ -52,7 +52,17 @@ impl Write for MeowSBIStdout {
 }
 
 pub fn fprint(args: core::fmt::Arguments) -> core::fmt::Result {
-    MeowSBIStdout.write_fmt(args)
+    /*
+    while locking::PRINT.compare_and_swap(false, true, Ordering::Acquire) {
+        spin_loop_hint();
+    }
+    */
+
+    let result = MeowSBIStdout.write_fmt(args);
+
+    // locking::PRINT.store(false, Ordering::Release);
+
+    result
 }
 
 #[macro_export]

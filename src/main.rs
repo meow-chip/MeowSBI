@@ -28,21 +28,25 @@ mod utils;
 
 use platform::PlatformOps;
 
-const HART_CNT: usize = 1;
-const HART_STORE_SIZE: usize = 4096;
+const HART_CNT: usize = 2;
+const HART_STORE_SIZE: usize = 1 << 16;
 #[macro_export]
 macro_rules! HART_STORE_SHIFT_STR {
     () => {
-        "12"
+        "16"
     };
 }
 
 type PLATFORM = platform::qemu::QEMU;
 
 use core::sync::atomic::*;
-static FDT_RELOCATE_TOKEN: AtomicBool = AtomicBool::new(false);
-static FDT_FIXMP_TOKEN: AtomicBool = AtomicBool::new(false);
 static mut FDT_RELOCATED_ADDR: *mut u8 = 0 as *mut u8;
+static WARM_BOOT_FIRE: AtomicBool = AtomicBool::new(false);
+
+extern "C" {
+    fn _fw_start();
+    fn _fw_end();
+}
 
 /**
  * MeowSBI entry point
@@ -51,20 +55,15 @@ static mut FDT_RELOCATED_ADDR: *mut u8 = 0 as *mut u8;
 
 #[no_mangle]
 extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
-    // Early boot routine
-    let fdt_addr = if hartid == 0 {
-        // Relocate fdt
-        let fdt_addr = relocate_fdt(fdt_addr);
-        unsafe { FDT_RELOCATED_ADDR = fdt_addr };
-        FDT_RELOCATE_TOKEN.store(true, Ordering::Release);
-        fdt_addr
-    } else {
-        while !FDT_RELOCATE_TOKEN.load(Ordering::Acquire) {
-            spin_loop_hint();
-        }
+    if hartid != 0 {
+        warm_boot(hartid)
+    }
 
-        unsafe { FDT_RELOCATED_ADDR }
-    };
+    // Early boot routine
+
+    // Relocate fdt
+    let fdt_addr = relocate_fdt(fdt_addr);
+    unsafe { FDT_RELOCATED_ADDR = fdt_addr };
 
     let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();
 
@@ -76,51 +75,73 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
         );
     }
 
-    if hartid == 0 {
-        // Print MOTD
-        mprint!(include_str!("./motd.txt")).unwrap();
+    mprint!(include_str!("./motd.txt")).unwrap();
 
-        crate::mprintln!("FDT relocated to 0x{:016X}", fdt_addr as usize).unwrap();
+    crate::mprintln!("FDT relocated to 0x{:016X}", fdt_addr as usize).unwrap();
 
-        // Setup pmp
-        setup_pmp();
-    }
+    // Setup pmp
+    setup_pmp();
 
     // Setup mtvec
     trap::setup();
 
     // Fixup fdt
-    if hartid != 0 {
-        while !FDT_FIXMP_TOKEN.load(Ordering::Acquire) {
-            spin_loop_hint();
-        }
-    } else {
-        fixup_fdt(fdt_addr);
-        FDT_FIXMP_TOKEN.store(true, Ordering::Release);
+    fixup_fdt(fdt_addr);
+    crate::mprintln!("Hart {} cold boot... arg1: 0x{:016x}", hartid, fdt_addr as usize).unwrap();
+    WARM_BOOT_FIRE.store(true, Ordering::Release);
+
+    next_boot(hartid, fdt_addr);
+}
+
+fn warm_boot(hartid: usize) -> ! {
+    while WARM_BOOT_FIRE.load(Ordering::Acquire) == false {
+        spin_loop_hint();
     }
 
+    let fdt_addr = unsafe { FDT_RELOCATED_ADDR };
+
+    let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();
+    unsafe {
+        core::ptr::write(
+            mem::data(hartid).platform.as_mut_ptr(),
+            PLATFORM::new(hartid, fdt),
+        );
+    }
+
+    setup_pmp();
+    trap::setup();
+
+    crate::mprintln!("Hart {} warm boot... arg1: 0x{:016x}", hartid, fdt_addr as usize).unwrap();
     next_boot(hartid, fdt_addr);
 }
 
 // FW_JUMP mode
 fn next_boot(hartid: usize, fdt_addr: *const u8) -> ! {
     unsafe {
+        riscv::register::stvec::write(0x80200000, riscv::register::stvec::TrapMode::Direct);
+        riscv::register::sscratch::write(0);
+        riscv::register::sie::clear_sext();
+        riscv::register::sie::clear_ssoft();
+        riscv::register::sie::clear_stimer();
+        riscv::register::satp::write(0);
+
         riscv::register::mstatus::set_mpp(riscv::register::mstatus::MPP::Supervisor);
         riscv::register::mepc::write(0x80200000);
         trap::next_ret(hartid, fdt_addr);
     }
 }
 
-static mut FDT_STORAGE: [u8; 16384] = [0; 16384];
+// static mut FDT_STORAGE: [u8; 16384] = [0; 16384];
+const FDT_STORAGE_START: *mut u8 = 0x82200000usize as _;
 
 fn relocate_fdt(original: *const u8) -> *mut u8 {
     let parsed = unsafe { fdt::FDT::from_raw(original) }.unwrap();
     let size = parsed.total_size();
     unsafe {
-        core::ptr::copy_nonoverlapping(original, &mut FDT_STORAGE[0] as _, size as usize);
+        core::ptr::copy_nonoverlapping(original, FDT_STORAGE_START, size as usize);
     }
 
-    unsafe { &mut FDT_STORAGE[0] as _ }
+    FDT_STORAGE_START
 }
 
 fn fixup_fdt(fdt: *mut u8) {
@@ -159,18 +180,19 @@ fn fixup_fdt(fdt: *mut u8) {
 
 fn setup_pmp() {
     // Setup PMP for firmware itself
-    let fw_start = 0x0000_0000;
-    let fw_size = 0x20_0000;
+    let fw_start = 0x8000_0000;
+    let fw_size = (_fw_end as usize - _fw_start as usize).next_power_of_two();
 
     let addr_encoded = (fw_start >> 2) | ((fw_size >> 3) - 1);
 
-    crate::mprintln!("PMP Encoded: {:016X}", addr_encoded).unwrap();
+    crate::mprintln!("FW size: {:016X}", fw_size).unwrap();
+    crate::mprintln!("PMP encoded: {:016X}", addr_encoded).unwrap();
 
     riscv::register::pmpaddr0::write(addr_encoded);
     riscv::register::pmpaddr1::write((1 << (56-3)) - 1); // Maximum range
     riscv::register::pmpcfg0::write(
         (
-            (3 << 3) | 1 // NAPOT + not locking + can read (for FDT)
+            (3 << 3) | 0 // NAPOT + not locking
         ) | (
             ((3 << 3) | 7) << 8
         )
