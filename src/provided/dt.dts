@@ -1,0 +1,31 @@
+/dts-v1/;
+
+/ {
+  #address-cells = <0x2>;
+  #size-cells = <0x2>;
+
+  compatible = "riscv-meowv64";
+  model = "riscv-meowv64,meowv64";
+
+  uart@FFFFFFFF00000000 {
+    interrupts = <0x1>;
+    clock-frequency = <9600>;
+    reg = <0xFFFFFFFF 0x00000000 0x00000000 0x00000100>;
+    compatible = "ns16550a";
+  };
+
+  memory@80000000 {
+    device_type = "memory";
+    reg = <0x0 0x80000000 0x0 0x800000>;
+  };
+
+  soc {
+    #address-cells = <0x2>;
+    #size-cells = <0x2>;
+
+    clint@FFFF000002000000 {
+      reg = <0xFFFF0000 0x02000000 0x00000000 0x00010000>;
+      compatible = "riscv;clint0";
+    };
+  };
+};

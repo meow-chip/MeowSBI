@@ -1,1 +1,1 @@
-struct MeowV64;
+pub type MeowV64 = super::qemu::QEMU;

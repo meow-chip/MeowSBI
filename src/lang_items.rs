@@ -1,6 +1,7 @@
 #[cfg(not(test))]
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    crate::mprintln!("MeowSBI Panic: {:?}", info).unwrap();
     loop {}
 }
 

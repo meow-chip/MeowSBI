@@ -12,7 +12,7 @@
 #![no_main]
 #![allow(unused_attributes)]
 #![allow(non_camel_case_types)]
-#![link_args = "-Tsrc/ld/qemu.ld"]
+#![link_args = "-Tsrc/provided/linker.ld"]
 
 use riscv;
 
@@ -37,7 +37,7 @@ macro_rules! HART_STORE_SHIFT_STR {
     };
 }
 
-type PLATFORM = platform::qemu::QEMU;
+type PLATFORM = platform::meowv64::MeowV64;
 
 use core::sync::atomic::*;
 static mut FDT_RELOCATED_ADDR: *mut u8 = 0 as *mut u8;
@@ -62,6 +62,8 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
     // Early boot routine
 
     // Relocate fdt
+    let embedded_fdt = include_bytes!("provided/dt.fdt");
+    let fdt_addr = if fdt_addr == core::ptr::null() { embedded_fdt as *const u8 } else { fdt_addr };
     let fdt_addr = relocate_fdt(fdt_addr);
     unsafe { FDT_RELOCATED_ADDR = fdt_addr };
 
