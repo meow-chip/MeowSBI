@@ -6,8 +6,7 @@ BASE_ADDRESS = 0x80000000;
 SECTIONS
 {
   . = BASE_ADDRESS;
-  start = .;
-  _fw_start = .;
+  PROVIDE(_fw_start = .);
 
   .text : {
     *(.text.entry)
@@ -18,6 +17,7 @@ SECTIONS
 
   .rodata : {
     *(.rodata .rodata.*)
+    *(.rodata.payload)
   }
 
   .sdata : {
@@ -36,5 +36,11 @@ SECTIONS
     *(.sbss .sbss.*)
   }
 
-  _fw_end = .;
+  PROVIDE(_fw_end = .);
+
+  .payload : {
+    PROVIDE(_payload_start = .);
+    *(.payload)
+    PROVIDE(_payload_end = .);
+  }
 }

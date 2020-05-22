@@ -7,6 +7,7 @@ pub unsafe extern "C" fn entry() -> ! {
     // Setup registers
     setup_register();
     setup_stack();
+    llvm_asm!("la a2, payload");
     llvm_asm!("j boot");
     unreachable!();
 }

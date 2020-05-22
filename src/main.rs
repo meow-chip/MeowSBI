@@ -25,6 +25,7 @@ mod sbi;
 mod serial;
 mod trap;
 mod utils;
+mod payload;
 
 use platform::PlatformOps;
 
@@ -54,7 +55,7 @@ extern "C" {
  */
 
 #[no_mangle]
-extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
+extern "C" fn boot(hartid: usize, fdt_addr: *const u8, payload_addr: *const u8) -> ! {
     if hartid != 0 {
         warm_boot(hartid)
     }
@@ -89,6 +90,10 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8) -> ! {
 
     // Fixup fdt
     fixup_fdt(fdt_addr);
+
+    // Relocate payload
+    payload::relocate(payload_addr);
+
     crate::mprintln!("Hart {} cold boot... arg1: 0x{:016x}", hartid, fdt_addr as usize).unwrap();
     WARM_BOOT_FIRE.store(true, Ordering::Release);
 
@@ -120,7 +125,7 @@ fn warm_boot(hartid: usize) -> ! {
 // FW_JUMP mode
 fn next_boot(hartid: usize, fdt_addr: *const u8) -> ! {
     unsafe {
-        riscv::register::stvec::write(0x80200000, riscv::register::stvec::TrapMode::Direct);
+        riscv::register::stvec::write(payload::PAYLOAD_TARGET as usize, riscv::register::stvec::TrapMode::Direct);
         riscv::register::sscratch::write(0);
         riscv::register::sie::clear_sext();
         riscv::register::sie::clear_ssoft();
@@ -128,7 +133,7 @@ fn next_boot(hartid: usize, fdt_addr: *const u8) -> ! {
         riscv::register::satp::write(0);
 
         riscv::register::mstatus::set_mpp(riscv::register::mstatus::MPP::Supervisor);
-        riscv::register::mepc::write(0x80200000);
+        riscv::register::mepc::write(payload::PAYLOAD_TARGET as usize);
         trap::next_ret(hartid, fdt_addr);
     }
 }

@@ -15,3 +15,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+[features]
+default = []
+payload = []
