@@ -4,7 +4,7 @@ qemu-system-riscv64 \
   -m 2G \
   -nographic \
   -machine virt \
-  -kernel ./target/riscv64gc-unknown-none-elf/debug/meow-sbi
+  -kernel ./target/riscv64gc-unknown-none-elf/release/meow-sbi
   # -append "root=/dev/vda ro" \
   # -object rng-random,filename=/dev/urandom,id=rng0 \
   # -device virtio-rng-device,rng=rng0 \

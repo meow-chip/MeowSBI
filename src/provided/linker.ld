@@ -38,6 +38,8 @@ SECTIONS
 
   PROVIDE(_fw_end = .);
 
+  . = 0x80200000;
+
   .payload : {
     PROVIDE(_payload_start = .);
     *(.payload)

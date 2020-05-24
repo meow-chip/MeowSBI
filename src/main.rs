@@ -63,8 +63,8 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8, payload_addr: *const u8) 
     // Early boot routine
 
     // Relocate fdt
-    let embedded_fdt = include_bytes!("provided/dt.fdt");
-    let fdt_addr = if fdt_addr == core::ptr::null() { embedded_fdt as *const u8 } else { fdt_addr };
+    let embedded_fdt = include_bytes!("provided/dt.fdt") as *const u8;
+    let fdt_addr = if fdt_addr == core::ptr::null() { embedded_fdt } else { fdt_addr };
     let fdt_addr = relocate_fdt(fdt_addr);
     unsafe { FDT_RELOCATED_ADDR = fdt_addr };
 

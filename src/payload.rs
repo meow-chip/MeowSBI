@@ -12,6 +12,9 @@ pub fn relocate(payload_addr: *const u8) {
     if !HAS_PAYLOAD {
         crate::mprintln!("MeowSBI built without payload, skipping payload relocation").unwrap();
         return;
+    } else if payload_addr == PAYLOAD_TARGET {
+        crate::mprintln!("Payload already at 0x{:016X}, skipping relocation", payload_addr as usize).unwrap();
+        return;
     }
 
     crate::mprintln!("Payload relocation 0x{:016X} -> 0x{:016X}", payload_addr as usize, PAYLOAD_TARGET as usize).unwrap();
