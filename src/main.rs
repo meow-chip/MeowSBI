@@ -30,7 +30,7 @@ mod payload;
 use platform::PlatformOps;
 
 const HART_CNT: usize = 2;
-const HART_STORE_SIZE: usize = 1 << 16;
+const HART_STORE_SIZE: usize = 1 << 18;
 #[macro_export]
 macro_rules! HART_STORE_SHIFT_STR {
     () => {
@@ -60,6 +60,9 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8, payload_addr: *const u8) 
         warm_boot(hartid)
     }
 
+    crate::serial::early_print_setup();
+    crate::serial::early_print("Early print ready\n");
+
     // Early boot routine
 
     // Relocate fdt
@@ -67,6 +70,8 @@ extern "C" fn boot(hartid: usize, fdt_addr: *const u8, payload_addr: *const u8) 
     let fdt_addr = if fdt_addr == core::ptr::null() { embedded_fdt } else { fdt_addr };
     let fdt_addr = relocate_fdt(fdt_addr);
     unsafe { FDT_RELOCATED_ADDR = fdt_addr };
+
+    crate::serial::early_print("FDT relocated\n");
 
     let fdt = unsafe { fdt::FDT::from_raw(fdt_addr) }.unwrap();
 
@@ -139,7 +144,7 @@ fn next_boot(hartid: usize, fdt_addr: *const u8) -> ! {
 }
 
 // static mut FDT_STORAGE: [u8; 16384] = [0; 16384];
-const FDT_STORAGE_START: *mut u8 = 0x82200000usize as _;
+const FDT_STORAGE_START: *mut u8 = 0x80700000usize as _;
 
 fn relocate_fdt(original: *const u8) -> *mut u8 {
     let parsed = unsafe { fdt::FDT::from_raw(original) }.unwrap();

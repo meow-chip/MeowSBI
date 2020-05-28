@@ -47,6 +47,7 @@ struct MeowSBIStdout;
 impl Write for MeowSBIStdout {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         print(s);
+        // early_print(s);
         Ok(())
     }
 }
@@ -76,4 +77,20 @@ macro_rules! mprint {
 macro_rules! mprintln {
     () => ($crate::mprint!("\n"));
     ($($arg:tt)*) => ($crate::mprint!("{}\n", format_args!($($arg)*)));
+}
+
+// Early print
+const EARLY_SERIAL: crate::utils::uart::UART16550
+    = crate::utils::uart::UART16550::new(0x10001000, 2, 11_059_200, 115200);
+
+pub fn early_print(s: &str) {
+    for c in s.bytes() {
+        unsafe {
+            EARLY_SERIAL.putchar(c);
+        }
+    }
+}
+
+pub fn early_print_setup() {
+    EARLY_SERIAL.init();
 }

@@ -228,6 +228,8 @@ pub extern "C" fn wrapped_trap<'a>(tf: &'a mut TrapFrame) {
         }
         t => {
             crate::mprintln!("Unexpected trap: {:?}", t).unwrap();
+            crate::mprintln!("MEPC:  0x{:016X}", riscv::register::mepc::read()).unwrap();
+            crate::mprintln!("MTVAL: 0x{:016X}", riscv::register::mtval::read()).unwrap();
             panic!();
         }
     }

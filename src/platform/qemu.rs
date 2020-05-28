@@ -15,7 +15,10 @@ impl PlatformOps for QEMU {
         let mut uart_addr = None;
         let mut uart_shift: Option<usize> = None;
         let mut uart_offset: Option<usize> = None;
+        let mut uart_clk: Option<usize> = None;
+        let mut uart_baud: Option<usize> = None;
 
+        crate::serial::early_print("Parsing FDT\n");
         for node in fdt.nodes() {
             if node.is_compatible_with("clint0") {
                 let addr = node
@@ -35,14 +38,26 @@ impl PlatformOps for QEMU {
                 uart_shift = node.property("reg-shift")
                     .and_then(|p| p.as_u32().ok())
                     .map(|r| r as _);
+
+                uart_clk = node.property("clock-frequency")
+                    .and_then(|p| p.as_u32().ok())
+                    .map(|r| r as _);
+
+                uart_baud = node.property("current-speed")
+                    .and_then(|p| p.as_u32().ok())
+                    .map(|r| r as _);
             }
         }
+
+        // crate::serial::early_print("Parsing Finished\n");
 
         QEMU {
             hartid,
             serial: UART16550::new(
                 uart_addr.unwrap_or(0x10000000) + uart_offset.unwrap_or(0),
                 uart_shift.unwrap_or(0),
+                uart_clk.unwrap_or(11_059_200) as _,
+                uart_clk.unwrap_or(115200) as _,
             ),
             clint: CLINT::new(clint_addr.unwrap_or(0x2000000) as *mut u8, hartid),
         }
